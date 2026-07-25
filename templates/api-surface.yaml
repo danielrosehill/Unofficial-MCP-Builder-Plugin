@@ -1,0 +1,123 @@
+# api-surface.yaml — the contract between the three skills in this plugin.
+#
+# Lives at the root of the MCP server repo and is committed. It is the record of
+# what the vendor's API actually does, as distinct from what its documentation
+# claims. `create-mcp-from-api-docs` writes it, `revalidate-api-surface` diffs
+# the upstream against it, `smoke-test-mcp` annotates it with observed behaviour.
+#
+# Every claim carries how it was established (`evidence`) and when. A field with
+# evidence: docs has never been seen to work; do not treat it as true.
+
+api:
+  name: acme                                   # slug, matches the npm package suffix
+  vendor: Acme Corp
+  base_url: https://api.acme.com/v1
+  official_mcp: none                           # none | exists-but-inadequate (say why) | unknown
+  terms_url: https://acme.com/terms
+  rate_limit:
+    documented: 100/min
+    observed: null                             # filled by smoke-test if a 429 is ever seen
+    header: X-RateLimit-Remaining
+
+auth:
+  type: bearer                                 # bearer | api-key-header | basic | oauth2 | hmac
+  env: ACME_API_KEY                            # the env var the server reads
+  header: Authorization
+  format: "Bearer {key}"
+  scopes_observed: []                          # what the test key could actually reach
+  notes: >
+    Key is read from the environment only. Never write a key into this file,
+    into fixtures, or into a commit.
+
+docs:
+  - url: https://docs.acme.com/api/widgets
+    fetched: 2026-07-25
+    sha256: null                               # of the normalised markdown, for drift detection
+    format: html                               # html | openapi | postman | pdf | scraped
+  - url: https://docs.acme.com/openapi.json
+    fetched: 2026-07-25
+    sha256: null
+    format: openapi
+
+version_signal:                                # how to tell the API changed without diffing every doc page
+  type: header                                 # header | endpoint | doc-hash | changelog
+  name: X-API-Version
+  observed: "2026-04-01"
+  changelog_url: https://docs.acme.com/changelog
+
+endpoints:
+  - id: list_widgets
+    method: GET
+    path: /widgets
+    evidence: live                             # live | docs | inferred
+    verified: 2026-07-25
+    auth_required: true
+    params:
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        documented_default: 20
+        observed_default: 25                   # discrepancies like this are the whole point of the file
+        max_observed: 100
+      - name: cursor
+        in: query
+        type: string
+        required: false
+    pagination:
+      style: cursor                            # cursor | offset | page | none
+      request_param: cursor
+      response_field: next_cursor
+    response_shape:
+      data: "Widget[]"
+      next_cursor: "string | null"
+    errors:
+      - status: 401
+        body_shape: '{ error: { code: string, message: string } }'
+        meaning: key invalid or expired
+    destructive: false
+    exposed_as: widgets(action=list)
+    notes: >
+      Docs say `limit` maxes at 50; 100 was accepted. Recorded, not relied on.
+
+  - id: delete_widget
+    method: DELETE
+    path: /widgets/{id}
+    evidence: docs                             # never executed — destructive, not smoke-tested
+    verified: null
+    destructive: true
+    exposed_as: widgets(action=delete)
+    notes: Requires explicit user confirmation at call time; excluded from smoke tests by default.
+
+tools:                                         # the MCP surface, consolidated — not 1:1 with endpoints
+  - name: widgets
+    description: List, read, create, update, and delete widgets.
+    actions: [list, get, create, update, delete]
+    endpoints: [list_widgets, get_widget, create_widget, update_widget, delete_widget]
+    destructive_actions: [delete]
+    read_only_actions: [list, get]
+
+undocumented:                                  # found by probing, absent from the docs
+  - path: /widgets/{id}/history
+    method: GET
+    evidence: live
+    verified: 2026-07-25
+    exposed: false
+    notes: >
+      Returns an audit trail. Undocumented, so the vendor may remove it without
+      notice — left unexposed. Revisit if it appears in the docs.
+
+known_discrepancies:                           # doc says X, API does Y — the maintenance backlog
+  - endpoint: list_widgets
+    doc_claim: "limit maximum is 50"
+    observed: "100 accepted, 101 returns 400"
+    first_seen: 2026-07-25
+    action: none                               # none | server-updated | reported-to-vendor | watch
+
+smoke_test:
+  safe_actions: [list, get]                    # run unattended
+  requires_confirmation: [create, update]      # ask before each run
+  never_automated: [delete]
+  fixture_prefix: "mcp-smoke-"                 # so test-created records are identifiable and cleanable
+  last_run: null
+  last_result: null
