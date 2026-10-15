@@ -70,8 +70,8 @@ The key is used to verify that the server matches the API. Throughout:
 current; testing it end-to-end; publishing it.
 
 **Not in scope:** auditing an MCP server you didn't write (`my-mcp-mgmt` /
-`longship` cover that), installing or mounting servers (`claude-vault`,
-`claude-rudder`), or reverse-engineering an undocumented private API from
+`longship` cover that), installing or mounting servers (`plugin-vault`,
+`rudder`), or reverse-engineering an undocumented private API from
 browser traffic (`browser-data-capture`).
 
 ## Licence
