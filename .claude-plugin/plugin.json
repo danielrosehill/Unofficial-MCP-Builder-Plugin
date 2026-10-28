@@ -1,6 +1,6 @@
 {
   "name": "unofficial-mcp-builder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Author and maintain unofficial MCP servers for third-party APIs that don't ship one. Generate a server from the vendor's API docs (verified against the live API with the user's own key), keep it in sync as the upstream surface drifts, and smoke-test it against real operations. Publishes to npm.",
   "author": {
     "name": "Daniel Rosehill",

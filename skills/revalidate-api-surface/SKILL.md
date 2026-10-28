@@ -41,7 +41,29 @@ In order, stopping early if nothing has moved:
    ignore it.
 4. **OpenAPI spec.** If one exists, diff it structurally rather than
    textually — added/removed paths, changed required-ness, changed types,
-   new enum values, new deprecation markers.
+   new enum values, new deprecation markers. Re-download it and diff against the
+   committed snapshot with oasdiff:
+
+   ```bash
+   docker run --rm -v "$PWD":/r:ro -v /tmp/w:/w:ro tufin/oasdiff changelog /r/spec/<vendor>-openapi.json /w/new.json
+   ```
+
+   Then diff the spec against what the **code** calls, operation by operation
+   (method + path, not just path):
+
+   ```bash
+   # list the server's calls as "METHOD /path" lines; adapt the grep to the client code
+   grep -o -E 'client\.(get|post|put|delete)\([^,)]*' src/*.ts \
+     | sed -E 's/client\.(get|post|put|delete)\(/\1 /; s/[`"]//g' | awk '{print toupper($1), $2}' > /tmp/w/calls.txt
+   python3 -I scripts/spec-diff.py /tmp/w/new.json /tmp/w/calls.txt   # --json for machine output
+   ```
+
+   "In spec, not called" are gaps, or calls made through other host constants
+   (auth, upload, CDN). Check those by hand. "Called, not in spec" are undocumented
+   or dead; probe them (`reference/probing-playbook.md`). A path-only comparison
+   misses a route the code never calls in that method, and a reference doc that
+   lists an endpoint doesn't prove the code wires it up. Record the expected
+   entries in `api-surface.yaml` so the next run only looks at new ones.
 
 If every signal is unchanged, report "no drift, last verified <date>", update
 the check date in `api-surface.yaml`, and stop. That's a successful run.

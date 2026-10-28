@@ -59,7 +59,17 @@ Enough to write a correct client, and no more:
 - **403** — the endpoint exists and the key lacks scope or the plan lacks the
   feature. Materially different from 404; record it in `scopes_observed`.
 - **404** — path wrong, or resource absent. Distinguish the two before
-  recording an endpoint as nonexistent.
+  recording an endpoint as nonexistent. Calibrate on this API first: a dummy ID
+  on a known route, a known POST-only route hit with GET, and a made-up path.
+  On many APIs a real route with a missing record says so in the body ("not
+  found"), a real POST-only route answers GET with **405**, and a non-existent
+  route gives a bare 404 identical to the made-up path. Once that pattern holds,
+  a GET confirms whether a POST/PUT route exists without writing anything.
+- **405 on GET** — the route exists for another method.
+- **400 naming a path parameter** — the request was swallowed by a broader
+  `/{id}` route. Inconclusive.
+- **OPTIONS / CORS preflight** — usually useless: gateways often list every
+  method for every path.
 - **422 / 400** — the useful ones. The body usually names the real constraint,
   which is often not what the docs say.
 - **429** — back off, record the observed limit.
@@ -67,6 +77,13 @@ Enough to write a correct client, and no more:
   noting rather than coding around.
 
 ## Undocumented endpoints
+
+To find them, use the vendor's own web app as the map: it calls everything,
+including what the docs omit. Capture its traffic with `browser-data-capture`
+(HAR, mitmproxy or a live tab), or quickly with `uvx mitmproxy2swagger -i app.har
+-o inferred.yaml -p <api-base> -f har`. It runs in two passes: delete the `ignore:`
+markers on the paths to keep, then run it again. Diff the inferred spec against
+the official one with oasdiff. HARs hold cookies and tokens, so never commit them.
 
 If probing turns up something the docs don't mention, record it under
 `undocumented` in `api-surface.yaml` with the date and evidence — and leave it

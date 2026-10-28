@@ -28,8 +28,17 @@ right outcome. If proceeding, note in the README how this one differs.
 Ask for whatever isn't already provided:
 
 - **Docs** — a URL, an OpenAPI/Swagger spec, a Postman collection, or pasted
-  text. An OpenAPI spec is worth a great deal more than prose; ask explicitly
-  whether one exists at `/openapi.json`, `/swagger.json`, or in the docs footer.
+  text. An OpenAPI spec is worth a great deal more than prose. Look for one
+  before reading prose: `bash scripts/find-spec.sh <docs-url> /tmp/<api>-spec`
+  tries the well-known paths (`/openapi.json`, `/swagger.json`, `/v3/api-docs`, …)
+  and greps the docs page's JS bundles. Redoc, Swagger UI, Scalar and Stoplight
+  load the spec from JS, so a docs site with no download link often still has one
+  (morning/Green Invoice's `developers.morning.co/docs/openapi.bundled.json` was
+  found that way). Follow redirects from old docs URLs first. Failing that, try
+  APIs.guru (`https://api.apis.guru/v2/list.json`) and the Postman public network,
+  and check whether a collection is by the vendor or a community member. Commit
+  the spec as `spec/<vendor>-openapi.json`; it is the baseline
+  `revalidate-api-surface` diffs against.
 - **API key** *(optional but changes the outcome substantially)* — offered for
   verifying the surface. Confirm it is the user's own key or one they're
   authorised to test with, and ask for a sandbox/test-tier key if the vendor
